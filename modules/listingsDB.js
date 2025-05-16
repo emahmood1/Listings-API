@@ -1,43 +1,50 @@
 const mongoose = require("mongoose");
 const listingSchema = require("./listingSchema");
 
-let Listing;
+class ListingsDB {
+  constructor() {
+    this.Listing = null;
+  }
 
-module.exports = {
-  initialize: function (connectionString) {
-  return new Promise((resolve, reject) => {
-    mongoose.connect(connectionString, { useNewUrlParser: true, useUnifiedTopology: true })
-      .then(() => {
-        Listing = mongoose.model("listingsAndReviews", listingSchema, "listingsAndReviews");
-        resolve();
-      })
-      .catch((err) => {
-        reject(err);
+  initialize(connectionString) {
+    return mongoose
+      .connect(connectionString, { useNewUrlParser: true, useUnifiedTopology: true })
+      .then((mongooseInstance) => {
+        this.Listing = mongooseInstance.model(
+          "listingsAndReviews",
+          listingSchema,
+          "listingsAndReviews"
+        );
       });
-  });
-},
+  }
 
-  addNewListing: function (data) {
-    const newListing = new Listing(data);
-    return newListing.save();
-  },
+  addNewListing(data) {
+    const doc = new this.Listing(data);
+    return doc.save();
+  }
 
-  getAllListings: function (page, perPage, name) {
-  return Listing.find({})
-    .sort({ number_of_reviews: -1 })
-    .limit(5)
-    .exec();
-},
+  getAllListings(page = 1, perPage = 5, name) {
+    const filter = {};
+    if (name) filter.name = new RegExp(name, "i");
+    const skip = (page - 1) * perPage;
+    return this.Listing.find(filter)
+      .sort({ number_of_reviews: -1 })
+      .skip(skip)
+      .limit(perPage)
+      .exec();
+  }
 
-  getListingById: function (id) {
-    return Listing.findOne({ _id: id }).exec();
-  },
+  getListingById(id) {
+    return this.Listing.findById(id).exec();
+  }
 
-  updateListingById: function (data, id) {
-    return Listing.updateOne({ _id: id }, { $set: data }).exec();
-  },
+  updateListingById(data, id) {
+    return this.Listing.updateOne({ _id: id }, { $set: data }).exec();
+  }
 
-  deleteListingById: function (id) {
-    return Listing.deleteOne({ _id: id }).exec();
-  },
-};
+  deleteListingById(id) {
+    return this.Listing.deleteOne({ _id: id }).exec();
+  }
+}
+
+module.exports = ListingsDB;
