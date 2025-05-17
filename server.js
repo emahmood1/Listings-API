@@ -4,35 +4,33 @@
 * I declare that this assignment is my own work in accordance with Seneca's
 * Academic Integrity Policy:
 * https://www.senecapolytechnic.ca/about/policies/academic-integrity-policy.html
-* Name: ______________________  Student ID: ______________  Date: ___________
-* Published URL: ___________________________________________________________
+* Name: Ehsan Mahmood Student ID: 115028227 Date: 15/05/2025
+* Published URL: https://github.com/emahmood1/listingsAPI
 ********************************************************************************/
 
 const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
 const serverless = require("serverless-http");
-const ListingsDB = require("./modules/listingsDB");
+const db = require("./modules/listingsDB");
 
 dotenv.config();
-const db = new ListingsDB();
 
-// Initialize the database once when the function cold-starts.
-// Any errors here will be logged but won’t crash at import time.
-db.initialize(process.env.MONGODB_CONN_STRING).catch((err) =>
-  console.error("DB init error:", err)
-);
+// Kick off the DB initialization _once_ at cold‐start
+const dbInit = db
+  .initialize(process.env.MONGODB_CONN_STRING)   // from your listingsDB.js :contentReference[oaicite:0]{index=0}:contentReference[oaicite:1]{index=1}
+  .catch((err) => console.error("DB init error:", err));
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Health‐check route
+// Health‐check
 app.get("/", (req, res) => {
   res.json({ message: "API Listening" });
 });
 
-// Create a new listing
+// Create
 app.post("/api/listings", async (req, res) => {
   try {
     const data = await db.addNewListing(req.body);
@@ -42,7 +40,7 @@ app.post("/api/listings", async (req, res) => {
   }
 });
 
-// Get listings (with pagination & optional name filter)
+// Read (with pagination & name filter)
 app.get("/api/listings", async (req, res) => {
   const page = parseInt(req.query.page) || 1;
   const perPage = parseInt(req.query.perPage) || 5;
@@ -55,7 +53,7 @@ app.get("/api/listings", async (req, res) => {
   }
 });
 
-// Get one listing by ID
+// Read one
 app.get("/api/listings/:id", async (req, res) => {
   try {
     const listing = await db.getListingById(req.params.id);
@@ -66,7 +64,7 @@ app.get("/api/listings/:id", async (req, res) => {
   }
 });
 
-// Update a listing by ID
+// Update
 app.put("/api/listings/:id", async (req, res) => {
   try {
     const result = await db.updateListingById(req.body, req.params.id);
@@ -78,19 +76,25 @@ app.put("/api/listings/:id", async (req, res) => {
   }
 });
 
-// Delete a listing by ID
+// Delete
 app.delete("/api/listings/:id", async (req, res) => {
   try {
     const result = await db.deleteListingById(req.params.id);
     if (result.deletedCount === 0)
       return res.status(404).json({ error: "Listing not found" });
-    // 204 No Content
     return res.status(204).end();
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// **This is the magic line** that exports your Express app
-// as a Vercel-compatible serverless function:
-module.exports = serverless(app);
+// Build the Vercel serverless handler
+const handler = serverless(app);
+
+// Export a wrapper that awaits the DB init before handling any request.
+// This prevents the function from hanging while Mongoose buffers
+// commands waiting for a connection :contentReference[oaicite:2]{index=2}:contentReference[oaicite:3]{index=3}.
+module.exports = async (req, res) => {
+  await dbInit;
+  return handler(req, res);
+};
