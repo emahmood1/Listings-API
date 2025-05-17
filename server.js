@@ -6,6 +6,7 @@
 * https://www.senecapolytechnic.ca/about/policies/academic-integrity-policy.html
 * Name: Ehsan Mahmood     Student ID: 115028227     Date: 15/05/2025
 * Published URL: https://github.com/emahmood1/listingsAPI
+* Vercel Deployment URL: https://listings-6vcl7f8kw-emahmood1s-projects.vercel.app/
 ********************************************************************************/
 
 const express = require("express");
