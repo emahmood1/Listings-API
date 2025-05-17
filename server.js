@@ -4,33 +4,34 @@
 * I declare that this assignment is my own work in accordance with Seneca's
 * Academic Integrity Policy:
 * https://www.senecapolytechnic.ca/about/policies/academic-integrity-policy.html
-* Name: Ehsan Mahmood Student ID: 115028227 Date: 15/05/2025
-* Published URL: https://github.com/emahmood1/listingsAPI
+* Name: Ehsan Mahmood     Student ID: 115028227     Date: 15/05/2025
+* Published URL: https://github.com/emahmood1/Listings-API
 ********************************************************************************/
 
 const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
 const serverless = require("serverless-http");
-const db = require("./modules/listingsDB");
+const ListingsDB = require("./modules/listingsDB");
 
 dotenv.config();
 
-// Kick off the DB initialization _once_ at cold‐start
+
+const db = new ListingsDB();
 const dbInit = db
-  .initialize(process.env.MONGODB_CONN_STRING)   // from your listingsDB.js :contentReference[oaicite:0]{index=0}:contentReference[oaicite:1]{index=1}
+  .initialize(process.env.MONGODB_CONN_STRING)
   .catch((err) => console.error("DB init error:", err));
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Health‐check
+
 app.get("/", (req, res) => {
   res.json({ message: "API Listening" });
 });
 
-// Create
+
 app.post("/api/listings", async (req, res) => {
   try {
     const data = await db.addNewListing(req.body);
@@ -40,7 +41,7 @@ app.post("/api/listings", async (req, res) => {
   }
 });
 
-// Read (with pagination & name filter)
+
 app.get("/api/listings", async (req, res) => {
   const page = parseInt(req.query.page) || 1;
   const perPage = parseInt(req.query.perPage) || 5;
@@ -53,7 +54,9 @@ app.get("/api/listings", async (req, res) => {
   }
 });
 
-// Read one
+/**
+ * GET    /api/listings/:id
+ */
 app.get("/api/listings/:id", async (req, res) => {
   try {
     const listing = await db.getListingById(req.params.id);
@@ -64,7 +67,9 @@ app.get("/api/listings/:id", async (req, res) => {
   }
 });
 
-// Update
+/**
+ * PUT    /api/listings/:id
+ */
 app.put("/api/listings/:id", async (req, res) => {
   try {
     const result = await db.updateListingById(req.body, req.params.id);
@@ -76,24 +81,24 @@ app.put("/api/listings/:id", async (req, res) => {
   }
 });
 
-// Delete
+/**
+ * DELETE /api/listings/:id
+ */
 app.delete("/api/listings/:id", async (req, res) => {
   try {
     const result = await db.deleteListingById(req.params.id);
     if (result.deletedCount === 0)
       return res.status(404).json({ error: "Listing not found" });
-    return res.status(204).end();
+    res.status(204).end();
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Build the Vercel serverless handler
+// Create the serverless handler
 const handler = serverless(app);
 
-// Export a wrapper that awaits the DB init before handling any request.
-// This prevents the function from hanging while Mongoose buffers
-// commands waiting for a connection :contentReference[oaicite:2]{index=2}:contentReference[oaicite:3]{index=3}.
+// Export an async wrapper that waits for the DB init before handling
 module.exports = async (req, res) => {
   await dbInit;
   return handler(req, res);
